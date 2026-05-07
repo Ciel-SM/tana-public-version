@@ -1,0 +1,8 @@
+{
+  "name": "Tana design Upgrade",
+  "description": "A real-time, on-screen AI assistant that sees what you see. Point at anything on your screen to interact with it using voice and vision.",
+  "requestFramePermissions": [
+    "microphone",
+    "display-capture"
+  ]
+}

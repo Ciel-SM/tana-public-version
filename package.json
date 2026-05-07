@@ -1,0 +1,110 @@
+{
+  "name": "tana-design-upgrade",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run tests/current",
+    "test:watch": "vitest",
+    "test:acceptance": "vitest run tests/acceptance",
+    "build:electron:preload": "node electron/build-preload.mjs",
+    "build:electron:main": "tsc -p tsconfig.electron.json",
+    "dev:electron": "npm run build:electron:preload && npm run build:electron:main && concurrently --names 'vite,preload,tsc,electron' -c 'blue,magenta,yellow,green' \"vite --host 127.0.0.1\" \"node --watch-path=electron/preload.ts --watch-path=electron/build-preload.mjs electron/build-preload.mjs\" \"tsc -p tsconfig.electron.json -w\" \"wait-on http://127.0.0.1:3000 && NODE_ENV=development electron .\"",
+    "build:electron": "npm run build && npm run build:electron:preload && npm run build:electron:main && electron-builder",
+    "package": "electron-builder --dir"
+  },
+  "dependencies": {
+    "@google/genai": "^1.45.0",
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.0.0",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sql.js": "^1.10.0",
+    "three": "^0.170.0",
+    "umap-js": "^1.4.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.1.2",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "jsdom": "^29.0.0",
+    "@types/three": "^0.170.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "vitest": "^4.1.0",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.tana.overlay",
+    "productName": "Tana",
+    "icon": "build/icon.icns",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/main.js",
+      "electron/display-geometry.js",
+      "electron/agent-tools.js",
+      "electron/preload.cjs",
+      "lib/mind-palace/**/*.js",
+      "build/icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/sql.js/dist/sql-wasm.wasm",
+        "to": "sql-wasm.wasm"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSScreenCaptureUsageDescription": "Tana needs permission to capture your screen so you can select regions for AI analysis.",
+        "NSMicrophoneUsageDescription": "Tana needs access to your microphone for voice conversation with AI."
+      }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

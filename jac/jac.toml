@@ -1,0 +1,9 @@
+[project]
+name = "tana-jac-poc"
+
+[plugins.byllm.model]
+default_model = "gemini/gemini-2.5-flash"
+
+[plugins.byllm.call_params]
+temperature = 0.2
+max_tokens = 200

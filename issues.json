@@ -1,0 +1,421 @@
+{
+  "version": 1,
+  "lastReviewedFor": "current test scaffolding and planning",
+  "issues": [
+    {
+      "id": "preload-bridge-source-of-truth",
+      "title": "Preload bridge has no reliable source of truth",
+      "description": "The app currently works because the shipped runtime bridge in electron/preload.cjs contains APIs that the renderer expects, but the TypeScript source in electron/preload.ts does not match it and the Electron TypeScript build excludes preload.ts entirely. This makes the runtime fragile and likely to break the next time generated files are refreshed or removed.",
+      "urgency": "critical",
+      "recommendedTiming": "fix-now",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "electron/preload.ts exposes every renderer bridge method the app uses at runtime.",
+        "The build pipeline compiles or otherwise derives the shipped preload artifact from electron/preload.ts instead of relying on a manually maintained checked-in file.",
+        "The packaged files list still includes the correct compiled preload artifact.",
+        "tests/acceptance/preload-source-of-truth.test.ts is unskipped and passes."
+      ],
+      "relatedFiles": [
+        "electron/preload.ts",
+        "electron/preload.cjs",
+        "tsconfig.electron.json",
+        "package.json"
+      ],
+      "relatedTests": [
+        "tests/current/electron-bridge-contract.test.ts",
+        "tests/acceptance/preload-source-of-truth.test.ts"
+      ],
+      "futureAgentNotes": [
+        "This is the highest-risk structural issue because it can silently break runtime behavior even if the app still builds.",
+        "Be careful not to remove the currently working bridge until the TypeScript-based path is fully wired."
+      ]
+    },
+    {
+      "id": "canvas-render-loop-leak",
+      "title": "CanvasLayer render loop keeps running while idle and may duplicate on reactivation",
+      "description": "CanvasLayer schedules requestAnimationFrame during mount and continues rescheduling even when the overlay is inactive. startStreaming also schedules another loop. Over time this can waste CPU/GPU and produce multiple concurrent loops after repeated activation cycles.",
+      "urgency": "high",
+      "recommendedTiming": "fix-now",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "CanvasLayer does not schedule animation frames while the overlay is inactive.",
+        "Activating the overlay creates only one active render loop.",
+        "Stopping the overlay reliably cancels the active render loop.",
+        "tests/acceptance/canvas-render-loop.test.tsx is unskipped and passes."
+      ],
+      "relatedFiles": [
+        "components/CanvasLayer.tsx"
+      ],
+      "relatedTests": [
+        "tests/acceptance/canvas-render-loop.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This is a behavior and performance issue, not just a code cleanliness issue.",
+        "Watch for interactions between imperative start/stop methods and React lifecycle effects."
+      ]
+    },
+    {
+      "id": "live-api-error-cleanup",
+      "title": "Live API error path does not fully clean up audio and session resources",
+      "description": "When the Gemini Live session errors, the hook sets connectionState to error but does not fully mirror the cleanup performed in the close or manual disconnect paths. Microphone tracks, audio contexts, and session references may survive an error path longer than intended.",
+      "urgency": "high",
+      "recommendedTiming": "fix-now",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "The onerror path releases microphone tracks, processor nodes, audio contexts, and session references just like disconnect/onclose.",
+        "After an error, the UI state reports the mic as off and the hook is safe to reconnect.",
+        "tests/acceptance/live-api-error-cleanup.test.tsx is unskipped and passes."
+      ],
+      "relatedFiles": [
+        "hooks/use-live-api.ts"
+      ],
+      "relatedTests": [
+        "tests/acceptance/live-api-error-cleanup.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "Treat this as both a correctness issue and a resource-management issue.",
+        "Reconnect flows are the easiest place to accidentally regress this fix."
+      ]
+    },
+    {
+      "id": "overlay-lifecycle-on-connection-change",
+      "title": "Overlay shutdown is not reliably tied to connection-state changes",
+      "description": "CanvasLayer receives an isStreaming prop but does not actually use it to control overlay state. If the live connection ends due to server close or error, the overlay can remain active and look interactive until the user manually disconnects.",
+      "urgency": "high",
+      "recommendedTiming": "fix-soon",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "When connectionState leaves connected, the overlay stops streaming and clears its active interactive state.",
+        "The app does not leave drawing/capture mode active after remote disconnects or local error transitions.",
+        "The acceptance test in tests/acceptance/app-behavior.test.tsx covering overlay shutdown is unskipped and passes."
+      ],
+      "relatedFiles": [
+        "App.tsx",
+        "components/CanvasLayer.tsx"
+      ],
+      "relatedTests": [
+        "tests/acceptance/app-behavior.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This likely overlaps with the render-loop fix, so consider solving both in the same pass if the code changes line up.",
+        "Be careful not to break the existing explicit disconnect button behavior."
+      ]
+    },
+    {
+      "id": "global-escape-wiring",
+      "title": "Global Escape shortcut is emitted by Electron but unused by the renderer",
+      "description": "Electron main sends a global-escape IPC event and the preload exposes an onGlobalEscape listener, but the React app never subscribes to it. The README currently documents Escape as a global disconnect/clear shortcut even though nothing happens in the renderer.",
+      "urgency": "medium",
+      "recommendedTiming": "fix-soon",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "App subscribes to the preload onGlobalEscape event.",
+        "Triggering the event disconnects the live session and clears overlay state just like the normal stop flow.",
+        "Documentation is aligned with the implemented behavior.",
+        "The acceptance test in tests/acceptance/app-behavior.test.tsx covering global Escape is unskipped and passes."
+      ],
+      "relatedFiles": [
+        "App.tsx",
+        "electron/main.ts",
+        "electron/preload.cjs",
+        "README.md"
+      ],
+      "relatedTests": [
+        "tests/acceptance/app-behavior.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This is lower risk than the bridge and resource-management issues, but it is a user-visible mismatch.",
+        "If the product decision changes, update README and the acceptance test together."
+      ]
+    },
+    {
+      "id": "electron-local-interim-transcript-network-loop",
+      "title": "Electron local interim transcript loops on SpeechRecognition network errors after the 3.1 Live port",
+      "description": "After porting the live session to `gemini-3.1-flash-live-preview`, the app still receives final Gemini input transcripts correctly, but the optional local interim caption path built on browser `SpeechRecognition` is unstable inside Electron. In development testing, the recognizer repeatedly emits `error: 'network'`, ends, restarts, and triggers Chromium `chunked_data_pipe_upload_data_stream.cc(217) OnSizeReceived failed with Error: -2` log spam. This is not the Gemini mic stream itself and does not appear to be an audio-device contention issue. The current safe behavior is to treat interim captions as optional and allow final Gemini transcripts to remain the source of truth.",
+      "urgency": "medium",
+      "recommendedTiming": "can-wait",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "The app no longer enters an infinite local speech-recognition restart loop in Electron when interim captions fail.",
+        "Electron either disables local interim captions by default, auto-disables them after repeated recognizer failures, or replaces them with a more reliable dedicated STT path.",
+        "Gemini Live final input transcripts continue to work when the interim-caption path is unavailable.",
+        "README and developer notes clearly explain that Electron local interim captions are currently unreliable after the 3.1 migration."
+      ],
+      "relatedFiles": [
+        "hooks/use-local-interim-transcript.ts",
+        "hooks/use-live-api.ts",
+        "components/ControlHUD.tsx",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "relatedTests": [
+        "tests/current/use-live-api.test.tsx",
+        "tests/current/control-hud.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "Debugging confirmed repeated `SpeechRecognitionErrorEvent` failures with `error: 'network'` in the renderer while Gemini final transcripts still arrived normally.",
+        "This looks like an Electron or Chromium speech-recognition transport problem rather than a race for the microphone or a Gemini Live audio-stream regression.",
+        "If interim captions matter again later, prefer a dedicated STT path over browser SpeechRecognition inside Electron."
+      ]
+    },
+    {
+      "id": "settings-modal-input-resync",
+      "title": "Settings modal does not resync unsaved input on reopen",
+      "description": "SettingsModal initializes its local input state from currentKey only once. If a user types an unsaved value, closes the modal, and reopens it, they still see the stale draft rather than the persisted key.",
+      "urgency": "low",
+      "recommendedTiming": "can-wait",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "Reopening the settings modal resets the input to the latest persisted currentKey value.",
+        "Unsaved draft input does not survive a close-and-reopen cycle unless that behavior is explicitly intended.",
+        "tests/acceptance/settings-modal-resync.test.tsx is unskipped and passes."
+      ],
+      "relatedFiles": [
+        "components/SettingsModal.tsx"
+      ],
+      "relatedTests": [
+        "tests/current/settings-modal.test.tsx",
+        "tests/acceptance/settings-modal-resync.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This is mostly a UX consistency issue.",
+        "The fix is likely small, but keep it separate from higher-risk runtime work unless batching is intentional."
+      ]
+    },
+    {
+      "id": "focus-box-capture-failure-feedback",
+      "title": "Focus box can appear successful even when region capture fails",
+      "description": "A focus box is rendered immediately, then region capture happens asynchronously. If captureRegion fails or returns null, the app keeps the visible focus box but does not notify the user or the model that the selected region was not actually sent.",
+      "urgency": "medium",
+      "recommendedTiming": "fix-soon",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "If focus-region capture fails, the user gets explicit feedback that the crop was not sent.",
+        "The app does not silently leave a focus box on screen in a state that implies success.",
+        "Failure behavior is consistent whether captureRegion throws or returns null.",
+        "tests/acceptance/focus-box-capture-failure-feedback.test.tsx passes."
+      ],
+      "relatedFiles": [
+        "components/CanvasLayer.tsx",
+        "App.tsx",
+        "hooks/use-live-api.ts"
+      ],
+      "relatedTests": [
+        "tests/current/canvas-layer-focus-box-capture-failure.test.tsx",
+        "tests/acceptance/focus-box-capture-failure-feedback.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This is a trust issue: the UI currently implies the AI has the selected region even when it may not.",
+        "A fix could be visual feedback, auto-removal, retry affordance, or transcript/system-message feedback."
+      ]
+    },
+    {
+      "id": "focus-box-unprompted-response",
+      "title": "Creating a focus box can trigger an unsolicited spoken response",
+      "description": "Drawing a focus box immediately sends a text cue and cropped image through the live realtime input path. Because the session is configured for audio responses, the model may answer out loud even when the user has not asked anything yet.",
+      "urgency": "medium",
+      "recommendedTiming": "fix-soon",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "Creating or updating a focus box without any spoken or typed follow-up does not trigger a model response on its own.",
+        "Focus-region crops stream through realtime input alongside the ongoing full-screen visual stream.",
+        "The app alternates screenshots and active focus-region crops so both remain available as visual context.",
+        "tests/acceptance/focus-box-passive-capture.test.tsx passes.",
+        "tests/acceptance/visual-input-queue-alternation.test.tsx passes."
+      ],
+      "relatedFiles": [
+        "hooks/use-live-api.ts",
+        "hooks/use-visual-input-queue.ts",
+        "App.tsx"
+      ],
+      "relatedTests": [
+        "tests/current/use-live-api.test.tsx",
+        "tests/current/use-visual-input-queue.test.tsx",
+        "tests/current/app-visual-input-queue.test.tsx",
+        "tests/acceptance/focus-box-passive-capture.test.tsx",
+        "tests/acceptance/visual-input-queue-alternation.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "The root problem is turn semantics, not just model wording.",
+        "Focus-region streaming currently has no hard cap on active focus boxes, so future work needs bounds and token-budget management."
+      ]
+    },
+    {
+      "id": "focus-box-stale-region-after-edit",
+      "title": "Moving or resizing a focus box does not refresh the captured region",
+      "description": "The app captures and sends the focus region only once at creation time. If the user moves or resizes the box afterward, the visible focus area no longer matches the image context that Gemini actually received.",
+      "urgency": "medium",
+      "recommendedTiming": "fix-soon",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "If the product keeps editable focus boxes, moving or resizing a box updates the captured region that the model should prioritize.",
+        "If the product does not want editable focus boxes to change model context, the UI makes that limitation explicit.",
+        "Visible focus-box geometry and model-prioritized region no longer drift silently.",
+        "tests/acceptance/focus-box-refresh-after-edit.test.tsx passes."
+      ],
+      "relatedFiles": [
+        "components/CanvasLayer.tsx",
+        "App.tsx"
+      ],
+      "relatedTests": [
+        "tests/current/canvas-layer-focus-box-refresh.test.tsx",
+        "tests/acceptance/focus-box-refresh-after-edit.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This is the biggest focus-box semantics gap in the current UX.",
+        "Decide first whether focus boxes are meant to be annotations, capture handles, or both."
+      ]
+    },
+    {
+      "id": "focus-box-stale-context-after-delete",
+      "title": "Deleting a focus box does not clear previously sent focus context",
+      "description": "Deleting a focus box removes it visually, but any previously uploaded focus-region image remains part of the model conversation. The UI suggests the focus target is gone while the model may still be prioritizing the old crop.",
+      "urgency": "low",
+      "recommendedTiming": "can-wait",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "Deleting a focus box has a defined effect on model context, either by clearing it, superseding it, or making the limitation visible to the user.",
+        "The user is not misled into thinking visual deletion automatically removed prior model context if it did not.",
+        "tests/acceptance/focus-box-delete-context.test.tsx passes."
+      ],
+      "relatedFiles": [
+        "components/CanvasLayer.tsx",
+        "hooks/use-live-api.ts",
+        "App.tsx"
+      ],
+      "relatedTests": [
+        "tests/current/canvas-layer-focus-box-delete.test.tsx",
+        "tests/acceptance/focus-box-delete-context.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This may be acceptable if documented as conversation history, but right now it is implicit.",
+        "This issue is lower priority than capture correctness and edit semantics."
+      ]
+    },
+    {
+      "id": "focus-box-bounds-clamping",
+      "title": "Focus boxes can be moved or resized outside the visible canvas",
+      "description": "Focus-box move and resize logic does not clamp geometry to the visible overlay area. Boxes can drift partially or fully off-canvas, making manipulation awkward and increasing the mismatch risk between visible selection and meaningful capture area.",
+      "urgency": "low",
+      "recommendedTiming": "can-wait",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "Focus boxes stay within sensible visible bounds, or the UI intentionally supports off-canvas geometry in a controlled way.",
+        "Move and resize behavior remains predictable near screen edges.",
+        "tests/acceptance/focus-box-bounds-clamping.test.tsx passes."
+      ],
+      "relatedFiles": [
+        "components/CanvasLayer.tsx"
+      ],
+      "relatedTests": [
+        "tests/acceptance/focus-box-bounds-clamping.test.tsx"
+      ],
+      "futureAgentNotes": [
+        "This is mostly a UX/polish issue unless it contributes to broken crops.",
+        "If capture coordinates stay tied to the visible canvas, clamping becomes more important."
+      ]
+    },
+    {
+      "id": "mind-palace-image-load-path-traversal",
+      "title": "Mind Palace image loading trusts renderer-supplied paths",
+      "description": "The Mind Palace preload bridge exposes loadImage(relativePath), and the main-process storage layer reads path.join(rootDir, relativePath) without checking that the final path stays inside the Mind Palace storage root. A compromised renderer can use .. segments to read arbitrary local files instead of only stored screenshots and focus-region images.",
+      "urgency": "high",
+      "recommendedTiming": "fix-soon",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "Mind Palace image-loading APIs only accept canonical paths that stay within the intended Mind Palace image directory.",
+        "Traversal attempts using absolute paths, .. segments, symlinks, or equivalent tricks are rejected before any file read occurs.",
+        "The renderer receives only the image access it actually needs, ideally through opaque IDs or validated storage-owned paths rather than arbitrary path strings.",
+        "Targeted tests cover success and rejection cases for path traversal attempts."
+      ],
+      "relatedFiles": [
+        "electron/preload.ts",
+        "electron/main.ts",
+        "lib/mind-palace/sqlite-storage.ts"
+      ],
+      "relatedTests": [],
+      "futureAgentNotes": [
+        "This is a real security issue, but it is still acceptable to defer until after MVP if the renderer remains trusted and launch hardening work is scheduled.",
+        "A good fix is to stop accepting raw paths from the renderer and instead resolve only storage-generated image identifiers."
+      ]
+    },
+    {
+      "id": "mind-palace-unvalidated-ipc-payloads",
+      "title": "Mind Palace IPC accepts unvalidated memory payloads and unbounded artifact sizes",
+      "description": "mind-palace:store-memory accepts a renderer-controlled payload with no schema validation, embedding-dimension checks, or base64 size limits before writing to disk and SQLite. Malformed embeddings can poison the persisted database and break future index rebuilds, and oversized screenshot or focus-region payloads can consume disk and memory unexpectedly.",
+      "urgency": "high",
+      "recommendedTiming": "fix-soon",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "Main-process Mind Palace IPC handlers validate payload shape and reject malformed or oversized requests before storing anything.",
+        "Embeddings are checked for the expected dimensionality and numeric sanity before being written to SQLite or inserted into the vector index.",
+        "Screenshot and focus-region payloads have explicit byte limits and failure behavior.",
+        "Corrupt or partial records cannot prevent Mind Palace from initializing on the next launch.",
+        "Targeted tests cover malformed embeddings, oversized image payloads, and recovery from bad persisted records."
+      ],
+      "relatedFiles": [
+        "electron/preload.ts",
+        "electron/main.ts",
+        "lib/mind-palace/sqlite-storage.ts",
+        "lib/mind-palace/vector-index.ts"
+      ],
+      "relatedTests": [],
+      "futureAgentNotes": [
+        "This is the highest-priority Mind Palace hardening issue because it mixes IPC trust, persistence, and denial-of-service risk.",
+        "Even if launch keeps the current trusted-renderer assumption, the main process should not persist arbitrary malformed data indefinitely."
+      ]
+    },
+    {
+      "id": "mind-palace-privacy-guardrails-and-copy",
+      "title": "Mind Palace stores and uploads sensitive context without launch-ready privacy guardrails",
+      "description": "Mind Palace continuously captures screenshots, focus-region crops, and transcript snippets, sends them to Gemini Embedding 2 for semantic embeddings, and stores the resulting artifacts locally in plaintext. The feature behavior is intended for MVP, but the current product copy and controls do not yet provide launch-ready consent language, retention guidance, or user-facing privacy guardrails for highly sensitive captured content.",
+      "urgency": "medium",
+      "recommendedTiming": "can-wait",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "User-facing copy clearly explains that Mind Palace may upload screenshots, focus-region images, and transcript snippets to Google's embedding API when enabled.",
+        "The UI makes the recording state and scope obvious enough that users are not surprised by passive capture behavior.",
+        "Launch planning explicitly covers retention policy, export/delete expectations, and how users can disable or pause capture with confidence.",
+        "README and in-app descriptions stay aligned with the final product behavior."
+      ],
+      "relatedFiles": [
+        "README.md",
+        "App.tsx",
+        "components/MindPalaceSidebar.tsx",
+        "hooks/use-mind-palace-pipeline.ts",
+        "lib/mind-palace/embed-queue.ts"
+      ],
+      "relatedTests": [],
+      "futureAgentNotes": [
+        "This is intentionally non-blocking for MVP, but it should be revisited before any broader product launch.",
+        "Treat this as a product-security and user-trust issue, not just documentation polish."
+      ]
+    },
+    {
+      "id": "mind-palace-retention-and-delete-controls",
+      "title": "Mind Palace has no launch-ready retention limits or user deletion flow",
+      "description": "Mind Palace persists screenshots, focus-region images, embeddings, and transcript-derived metadata under the app data directory with no retention cap, pruning strategy, or user-accessible delete flow. That is acceptable for an MVP experiment, but it creates avoidable privacy and local-disk risk if the feature ships more broadly without lifecycle controls.",
+      "urgency": "medium",
+      "recommendedTiming": "can-wait",
+      "accepted": true,
+      "acceptanceCriteria": [
+        "The product has a defined retention strategy for screenshots, focus crops, embeddings, and metadata.",
+        "Users can delete individual memories or clear all Mind Palace data without manually editing files on disk.",
+        "The UI and documentation explain where data lives locally and what deletion actually removes.",
+        "Stats, search, and visualization stay consistent after data is deleted or pruned."
+      ],
+      "relatedFiles": [
+        "README.md",
+        "components/MindPalaceSidebar.tsx",
+        "electron/main.ts",
+        "lib/mind-palace/sqlite-storage.ts",
+        "lib/mind-palace/storage-interface.ts"
+      ],
+      "relatedTests": [],
+      "futureAgentNotes": [
+        "This is intentionally non-blocking for MVP, but it should be revisited before launch alongside the broader privacy guardrails work.",
+        "There is already a storage-layer deleteMemory method, so part of the work may be exposing safe IPC and UI rather than inventing deletion from scratch."
+      ]
+    }
+  ]
+}
