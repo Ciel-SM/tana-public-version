@@ -1,5 +1,6 @@
 # Tana
 
+Team: Jonathan M., Sally M., Ira V., Kevin(Junjia) Z. (<-- best team ever)
 Full-screen transparent overlay assistant for macOS, powered by the Google Gemini Live API.
 Real-time bidirectional voice + vision — draw on your screen and talk to AI about anything visible.
 
