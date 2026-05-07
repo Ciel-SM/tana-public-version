@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>Tana needs permission to capture your screen so you can select regions for AI analysis.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Tana needs access to your microphone for voice conversation with AI.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Tana needs camera access for screen sharing features.</string>
+</dict>
+</plist>

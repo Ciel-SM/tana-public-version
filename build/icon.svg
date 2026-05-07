@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a14"/>
+      <stop offset="50%" style="stop-color:#0d1020"/>
+      <stop offset="100%" style="stop-color:#080812"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00c8ff;stop-opacity:0.9"/>
+      <stop offset="50%" style="stop-color:#0090ff;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:0.8"/>
+    </linearGradient>
+    <linearGradient id="innerGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00b4ff;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#0060ff;stop-opacity:0.05"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="45%" r="35%">
+      <stop offset="0%" style="stop-color:#00d0ff;stop-opacity:0.4"/>
+      <stop offset="60%" style="stop-color:#0080ff;stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:#000020;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+
+  <!-- Subtle radial center glow -->
+  <rect width="1024" height="1024" rx="220" fill="url(#centerGlow)"/>
+
+  <!-- Outer ring glow (soft) -->
+  <circle cx="512" cy="480" r="280" fill="none" stroke="#0090ff" stroke-width="6" opacity="0.15" filter="url(#softGlow)"/>
+
+  <!-- Main orbital ring -->
+  <circle cx="512" cy="480" r="260" fill="none" stroke="url(#ring)" stroke-width="4" opacity="0.9" filter="url(#glow)"/>
+
+  <!-- Inner ring -->
+  <circle cx="512" cy="480" r="200" fill="url(#innerGlow)" stroke="#00b4ff" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Orbital dots on the main ring -->
+  <circle cx="772" cy="480" r="8" fill="#00d4ff" opacity="0.9" filter="url(#glow)"/>
+  <circle cx="252" cy="480" r="6" fill="#0090ff" opacity="0.7"/>
+  <circle cx="512" cy="220" r="7" fill="#00c8ff" opacity="0.8" filter="url(#glow)"/>
+  <circle cx="512" cy="740" r="5" fill="#0080ff" opacity="0.6"/>
+
+  <!-- Center eye / AI core -->
+  <ellipse cx="512" cy="480" rx="90" ry="55" fill="none" stroke="#00d0ff" stroke-width="3" opacity="0.8" filter="url(#glow)"/>
+  <ellipse cx="512" cy="480" rx="45" ry="28" fill="#00c8ff" opacity="0.25"/>
+  <circle cx="512" cy="480" r="16" fill="#ffffff" opacity="0.95"/>
+  <circle cx="512" cy="480" r="8" fill="#00c8ff" opacity="0.9"/>
+
+  <!-- Scan lines (futuristic detail) -->
+  <line x1="380" y1="350" x2="340" y2="310" stroke="#00b4ff" stroke-width="2" opacity="0.3" stroke-linecap="round"/>
+  <line x1="644" y1="350" x2="684" y2="310" stroke="#00b4ff" stroke-width="2" opacity="0.3" stroke-linecap="round"/>
+  <line x1="380" y1="610" x2="340" y2="650" stroke="#00b4ff" stroke-width="2" opacity="0.25" stroke-linecap="round"/>
+  <line x1="644" y1="610" x2="684" y2="650" stroke="#00b4ff" stroke-width="2" opacity="0.25" stroke-linecap="round"/>
+
+  <!-- "TANA" text -->
+  <text x="512" y="820" text-anchor="middle" font-family="SF Pro Display, -apple-system, Helvetica Neue, sans-serif" font-size="72" font-weight="600" letter-spacing="18" fill="#ffffff" opacity="0.85">TANA</text>
+
+  <!-- Subtle bottom accent line -->
+  <line x1="370" y1="855" x2="654" y2="855" stroke="#00b4ff" stroke-width="1.5" opacity="0.3" stroke-linecap="round"/>
+</svg>
